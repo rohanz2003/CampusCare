@@ -23,13 +23,14 @@ export function pushNotification(db, userId, type, title, message, issueId) {
   return n;
 }
 
-router.get("/meta", requireAuth, (req, res) => {
+router.get("/meta", (req, res) => {
   const db = readDb();
   res.json({
     schools: db.schools || [],
     categories: db.categories || [],
     priorities: PRIORITIES,
     statuses: STATUSES,
+    workerTypes: db.workerTypes || [],
   });
 });
 

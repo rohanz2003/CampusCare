@@ -63,10 +63,10 @@ export default function Dashboard() {
       </motion.div>
 
       <div className="stagger grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard index={0} title="Total Issues" value={stats?.total ?? "—"} icon={BarChart3} tone="brand" trend={12} trendLabel="+12% this month" />
-        <StatCard index={1} title="Pending" value={stats?.pending ?? "—"} icon={Clock} tone="amber" sub="Awaiting repair assignment" />
-        <StatCard index={2} title="In Progress" value={stats?.inProgress ?? "—"} icon={Wrench} tone="sky" sub="Repair teams on site" />
-        <StatCard index={3} title="Resolved" value={stats?.resolved ?? "—"} icon={CheckCircle2} tone="emerald" trend={25} trendLabel={`${stats?.resolutionRate ?? 0}% resolution rate`} />
+        <StatCard index={0} title="Total Issues" value={stats?.total ?? "—"} trend={12} trendLabel="+12% this month" />
+        <StatCard index={1} title="Pending" value={stats?.pending ?? "—"} sub="Awaiting repair assignment" />
+        <StatCard index={2} title="In Progress" value={stats?.inProgress ?? "—"} sub="Repair teams on site" />
+        <StatCard index={3} title="Resolved" value={stats?.resolved ?? "—"} trend={25} trendLabel={`${stats?.resolutionRate ?? 0}% resolution rate`} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

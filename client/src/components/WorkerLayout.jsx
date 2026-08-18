@@ -1,60 +1,53 @@
 import { motion } from "framer-motion";
-import { NavLink, Outlet, useLocation, Navigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useMemo, useState } from "react";
-import {
-  LayoutDashboard,
-  PlusCircle,
-  ClipboardList,
-  Bell,
-  ShieldCheck,
-  LogOut,
-  User,
-  Menu,
-  X,
-  School,
-} from "lucide-react";
+import { LayoutDashboard, ClipboardList, Bell, LogOut, User, Menu, X, HardHat } from "lucide-react";
 import Logo from "./Logo.jsx";
 import ThemeToggle from "./ThemeToggle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useNotifications } from "../hooks/useNotifications.js";
 
-export default function Layout() {
+const WORKER_TYPE_LABELS = {
+  carpenter: "Carpenter",
+  electrician: "Electrician",
+  plumber: "Plumber",
+  sanitation: "Sanitation Staff",
+  general: "General Maintenance",
+};
+
+export default function WorkerLayout() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { unread } = useNotifications(user?.id);
+  const { unread } = useNotifications();
 
-  if (user?.role === "worker") return <Navigate to="/worker" replace />;
+  const links = useMemo(
+    () => [
+      { to: "/worker", label: "My Dashboard", icon: LayoutDashboard, end: true },
+      { to: "/worker/work", label: "My Work", icon: ClipboardList },
+      { to: "/worker/notifications", label: "Notifications", icon: Bell, badge: unread },
+      { to: "/worker/profile", label: "My Profile", icon: User },
+    ],
+    [unread]
+  );
 
-  const links = useMemo(() => {
-    if (user?.role === "admin") {
-      return [
-        { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-        { to: "/admin", label: "Admin Panel", icon: ShieldCheck },
-        { to: "/notifications", label: "Notifications", icon: Bell, badge: unread },
-        { to: "/profile", label: "My Profile", icon: User },
-      ];
-    }
-    return [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-      { to: "/report", label: "Report Issue", icon: PlusCircle },
-      { to: "/issues", label: "Track Issues", icon: ClipboardList },
-      { to: "/notifications", label: "Notifications", icon: Bell, badge: unread },
-      { to: "/profile", label: "My Profile", icon: User },
-    ];
-  }, [user, unread]);
+  const initials = (user?.name || "U").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
-  const initials = (user?.name || "U")
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+  const titleMap = {
+    "/worker": "Worker Dashboard",
+    "/worker/work": "My Assigned Work",
+    "/worker/notifications": "Notifications",
+    "/worker/profile": "My Profile",
+  };
+  const pageTitle = Object.entries(titleMap).find(([p]) => location.pathname.startsWith(p) && (p === "/worker" ? location.pathname === "/worker" : true))?.[1] || "Worker";
 
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="px-5 pb-2 pt-5">
         <Logo />
+        <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-cyan-500 to-teal-500 px-3 py-1 text-[11px] font-bold text-white shadow">
+          <HardHat size={12} /> Worker · {WORKER_TYPE_LABELS[user?.workerType] || user?.workerType || "Staff"}
+        </span>
       </div>
       <nav className="mt-4 flex-1 space-y-1 px-3">
         {links.map(({ to, label, icon: Icon, end, badge }) => (
@@ -66,17 +59,17 @@ export default function Layout() {
             className={({ isActive }) =>
               `group relative flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-all ${
                 isActive
-                  ? "bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-lg shadow-brand-500/25"
+                  ? "bg-gradient-to-r from-cyan-600 to-teal-500 text-white shadow-lg shadow-cyan-500/25"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <Icon size={18} className={isActive ? "" : "text-slate-400 group-hover:text-brand-500"} />
+                <Icon size={18} className={isActive ? "" : "text-slate-400 group-hover:text-cyan-500"} />
                 <span className="flex-1">{label}</span>
                 {badge > 0 && (
-                  <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${isActive ? "bg-white text-brand-600" : "bg-brand-500 text-white"}`}>
+                  <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${isActive ? "bg-white text-cyan-600" : "bg-cyan-500 text-white"}`}>
                     {badge}
                   </span>
                 )}
@@ -87,23 +80,14 @@ export default function Layout() {
       </nav>
       <div className="border-t border-slate-200 p-3 dark:border-slate-800">
         <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-800/60">
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow"
-            style={{ background: user?.avatarColor || "#6366f1" }}
-          >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow" style={{ background: user?.avatarColor || "#06b6d4" }}>
             {initials}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-slate-800 dark:text-white">{user?.name}</p>
-            <p className="flex items-center gap-1 truncate text-[11px] capitalize text-slate-500 dark:text-slate-400">
-              <School size={11} /> {user?.role}
-            </p>
+            <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{WORKER_TYPE_LABELS[user?.workerType] || "Worker"}</p>
           </div>
-          <button
-            onClick={logout}
-            title="Log out"
-            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10"
-          >
+          <button onClick={logout} title="Log out" className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-500/10">
             <LogOut size={16} />
           </button>
         </div>
@@ -120,12 +104,7 @@ export default function Layout() {
       {mobileOpen && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
-          <motion.aside
-            initial={{ x: -280 }}
-            animate={{ x: 0 }}
-            transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="absolute inset-y-0 left-0 w-72 bg-white shadow-2xl dark:bg-slate-900"
-          >
+          <motion.aside initial={{ x: -280 }} animate={{ x: 0 }} transition={{ type: "spring", damping: 28, stiffness: 300 }} className="absolute inset-y-0 left-0 w-72 bg-white shadow-2xl dark:bg-slate-900">
             <button onClick={() => setMobileOpen(false)} className="absolute right-3 top-4 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
               <X size={18} />
             </button>
@@ -141,17 +120,8 @@ export default function Layout() {
               <Menu size={20} />
             </button>
             <div className="flex-1">
-              <p className="text-sm font-semibold capitalize text-slate-500 dark:text-slate-400">
-                {location.pathname === "/" ? "Good day" : location.pathname.split("/")[1] === "" ? "" : ""}
-              </p>
-              <h1 className="font-display text-lg font-bold text-slate-900 dark:text-white">
-                {location.pathname === "/" && "Dashboard"}
-                {location.pathname === "/report" && "Report an Issue"}
-                {location.pathname.startsWith("/issues") && "Repair Tracking"}
-                {location.pathname === "/notifications" && "Notifications"}
-                {location.pathname === "/admin" && "Admin Panel"}
-                {location.pathname === "/profile" && "My Profile"}
-              </h1>
+              <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Repair worker workspace</p>
+              <h1 className="font-display text-lg font-bold text-slate-900 dark:text-white">{pageTitle}</h1>
             </div>
             <ThemeToggle />
           </div>

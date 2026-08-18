@@ -42,6 +42,8 @@ export function publicUser(u) {
     name: u.name,
     email: u.email,
     role: u.role,
+    workerType: u.workerType || null,
+    status: u.status || "approved",
     school: u.school,
     schoolId: u.schoolId,
     avatarColor: u.avatarColor,

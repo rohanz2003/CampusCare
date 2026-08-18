@@ -19,14 +19,16 @@ export default function StatCard({ title, value, sub, icon: Icon, tone = "brand"
       className="card group relative overflow-hidden p-5"
     >
       <div className={`absolute -right-6 -top-6 h-24 w-24 rounded-full bg-gradient-to-br opacity-10 blur-2xl transition-opacity group-hover:opacity-25 ${TONES[tone]}`} />
-      <div className="flex items-start justify-between">
+      <div className={`flex items-start ${Icon ? "justify-between" : ""}`}>
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</p>
           <p className="mt-1.5 font-display text-3xl font-bold text-slate-900 dark:text-white">{value}</p>
         </div>
-        <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg ${TONES[tone]}`}>
-          <Icon size={20} />
-        </div>
+        {Icon && (
+          <div className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-lg ${TONES[tone]}`}>
+            <Icon size={20} />
+          </div>
+        )}
       </div>
       {(trend !== undefined || trendLabel) && (
         <div className="mt-3 flex items-center gap-1.5 text-xs font-medium">

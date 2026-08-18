@@ -8,14 +8,6 @@ router.use(requireAuth, requireRole("admin"));
 
 const PRIORITIES = ["Low", "Medium", "High", "Critical"];
 const STATUSES = ["Pending", "In Progress", "Resolved"];
-const STAFF = [
-  "Ramesh Kumar (Maintenance)",
-  "Sunita Devi (Electrician)",
-  "Mohammad Ali (Plumber)",
-  "Prakash Joshi (Carpenter)",
-  "Deepa Rao (Sanitation Staff)",
-  "Anil Yadav (General Helper)",
-];
 
 router.get("/stats", (req, res) => {
   const db = readDb();
@@ -47,11 +39,57 @@ router.get("/stats", (req, res) => {
     byStatus,
     byPriority,
     totalUsers: db.users.filter((u) => u.role !== "admin").length,
+    pendingRequests: db.users.filter((u) => u.status === "pending").length,
   });
 });
 
+router.get("/workers", (req, res) => {
+  const db = readDb();
+  const workers = db.users
+    .filter((u) => u.role === "worker" && u.status === "approved")
+    .map((u) => ({
+      id: u.id,
+      name: u.name,
+      workerType: u.workerType,
+      workerTypeLabel: db.workerTypes?.find((t) => t.id === u.workerType)?.label || u.workerType,
+      assigned: db.issues.filter((i) => i.assignedToId === u.id && i.status !== "Resolved").length,
+    }));
+  res.json({ workers, workerTypes: db.workerTypes || [] });
+});
+
+router.get("/users", (req, res) => {
+  const db = readDb();
+  const { status } = req.query;
+  let users = db.users.filter((u) => u.role !== "admin");
+  if (status) users = users.filter((u) => u.status === status);
+  res.json({ users });
+});
+
+router.patch("/users/:id/decision", (req, res) => {
+  const { action } = req.body || {};
+  const db = readDb();
+  const target = db.users.find((u) => u.id === req.params.id);
+  if (!target) return res.status(404).json({ message: "User not found" });
+  if (target.role === "admin") return res.status(400).json({ message: "Admins cannot be approved or rejected" });
+  if (action !== "approve" && action !== "reject") return res.status(400).json({ message: "Action must be approve or reject" });
+
+  target.status = action === "approve" ? "approved" : "rejected";
+  pushNotification(
+    db,
+    target.id,
+    action === "approve" ? "resolved" : "pending",
+    action === "approve" ? "Registration approved" : "Registration rejected",
+    action === "approve"
+      ? `Welcome, ${target.name}! Your ${target.role === "worker" ? `worker (${target.workerType}) ` : ""}account was approved. You can now sign in.`
+      : `Your ${target.role} registration was rejected. Please contact the school administration for details.`,
+    null
+  );
+  writeDb(db);
+  res.json({ user: { id: target.id, name: target.name, role: target.role, status: target.status } });
+});
+
 router.patch("/:id", (req, res) => {
-  const { status, priority, assignedTo, estimatedResolution, note } = req.body || {};
+  const { status, priority, assignedToId, estimatedResolution, note } = req.body || {};
   const db = readDb();
   const issue = db.issues.find((i) => i.id === req.params.id);
   if (!issue) return res.status(404).json({ message: "Issue not found" });
@@ -60,7 +98,6 @@ router.patch("/:id", (req, res) => {
 
   const now = new Date().toISOString();
   const actions = [];
-  const notifyTo = [issue.reporterId];
 
   if (status && status !== issue.status) {
     issue.status = status;
@@ -79,10 +116,28 @@ router.patch("/:id", (req, res) => {
     issue.priority = priority;
     actions.push({ action: `Priority changed to ${priority}`, at: now, by: req.user.name });
   }
-  if (assignedTo && assignedTo !== issue.assignedTo) {
-    if (!STAFF.includes(assignedTo)) return res.status(400).json({ message: "Invalid repair staff member" });
-    issue.assignedTo = assignedTo;
-    actions.push({ action: `Assigned to ${assignedTo}`, at: now, by: req.user.name });
+  if (assignedToId !== undefined) {
+    if (!assignedToId) {
+      if (issue.assignedToId) {
+        actions.push({ action: `Task unassigned from ${issue.assignedToName}`, at: now, by: req.user.name });
+        pushNotification(db, issue.assignedToId, "pending", `Task unassigned: ${issue.id}`, `Your assignment for "${issue.title}" was removed by the administration.`, issue.id);
+      }
+      issue.assignedToId = null;
+      issue.assignedToName = null;
+      issue.assignedToType = null;
+    } else {
+      const worker = db.users.find((u) => u.id === assignedToId && u.role === "worker" && u.status === "approved");
+      if (!worker) return res.status(400).json({ message: "Please select a valid approved worker" });
+      const wasAssigned = issue.assignedToId && issue.assignedToId !== worker.id;
+      issue.assignedToId = worker.id;
+      issue.assignedToName = worker.name;
+      issue.assignedToType = worker.workerType;
+      actions.push({ action: `Assigned to ${worker.name} (${db.workerTypes?.find((t) => t.id === worker.workerType)?.label || worker.workerType})`, at: now, by: req.user.name });
+      pushNotification(db, worker.id, "progress", `New task assigned: ${issue.id}`, `You have been assigned to "${issue.title}" (${issue.priority} priority) at ${issue.location}.`, issue.id);
+      if (wasAssigned) {
+        pushNotification(db, issue.assignedToId, "pending", `Task reassigned: ${issue.id}`, `Your assignment for "${issue.title}" was transferred to another worker.`, issue.id);
+      }
+    }
   }
   if (estimatedResolution && /^\d+\s*(days?|hours?|weeks?)$/i.test(estimatedResolution)) {
     issue.estimatedResolution = estimatedResolution;
@@ -94,26 +149,6 @@ router.patch("/:id", (req, res) => {
   if (actions.length) {
     issue.timeline.push(...actions);
     issue.updatedAt = now;
-  }
-  writeDb(db);
-  res.json({ issue });
-});
-
-router.post("/:id/assign", (req, res) => {
-  const { assignedTo } = req.body || {};
-  const db = readDb();
-  const issue = db.issues.find((i) => i.id === req.params.id);
-  if (!issue) return res.status(404).json({ message: "Issue not found" });
-  if (!assignedTo || !STAFF.includes(assignedTo)) return res.status(400).json({ message: "Please select a valid repair staff member" });
-
-  issue.assignedTo = assignedTo;
-  const now = new Date().toISOString();
-  issue.timeline.push({ action: `Assigned to ${assignedTo}`, at: now, by: req.user.name });
-  issue.updatedAt = now;
-  if (issue.status === "Pending") {
-    issue.status = "In Progress";
-    issue.timeline.push({ action: "Repair work has started", at: now, by: req.user.name });
-    pushNotification(db, issue.reporterId, "progress", `Work started on ${issue.id}`, `Maintenance team is now working on "${issue.title}".`, issue.id);
   }
   writeDb(db);
   res.json({ issue });
@@ -137,8 +172,9 @@ router.get("/reports/summary", (req, res) => {
     .map((n) => ({ title: n.title, message: n.message, at: n.createdAt, type: n.type }));
 
   const staffWorkload = {};
-  for (const i of all.filter((x) => x.assignedTo)) {
-    staffWorkload[i.assignedTo] = (staffWorkload[i.assignedTo] || 0) + 1;
+  for (const i of all.filter((x) => x.assignedToName)) {
+    const label = `${i.assignedToName} (${db.workerTypes?.find((t) => t.id === i.assignedToType)?.label || i.assignedToType || "Maintenance"})`;
+    staffWorkload[label] = (staffWorkload[label] || 0) + 1;
   }
 
   res.json({ bySchool: Object.values(bySchool), staffWorkload, recentActivity, total: all.length });

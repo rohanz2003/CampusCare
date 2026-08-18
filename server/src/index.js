@@ -2,44 +2,26 @@ import express from "express";
 import cors from "cors";
 import path from "node:path";
 import fs from "node:fs";
-import { fileURLToPath } from "node:url";
 import multer from "multer";
+import { fileURLToPath } from "node:url";
 import { readDb, writeDb } from "./db.js";
 import { requireAuth } from "./middleware/auth.js";
+import { upload, UPLOAD_DIR } from "./middleware/upload.js";
 import authRoutes from "./routes/auth.js";
 import issueRoutes from "./routes/issues.js";
 import adminRoutes from "./routes/admin.js";
+import workerRoutes from "./routes/worker.js";
 import notificationRoutes from "./routes/notifications.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const UPLOAD_DIR = path.join(__dirname, "..", "uploads");
-
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(UPLOAD_DIR));
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const safe = file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}-${safe}`);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 25 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")) cb(null, true);
-    else cb(new Error("Only image and video files are allowed"));
-  },
-});
 
 app.post("/api/issues/:id/images", requireAuth, upload.array("images", 4), (req, res) => {
   const db = readDb();
@@ -60,6 +42,7 @@ app.get("/api/health", (_req, res) => res.json({ ok: true, service: "campuscare-
 app.use("/api/auth", authRoutes);
 app.use("/api/issues", issueRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/worker", workerRoutes);
 app.use("/api/notifications", notificationRoutes);
 
 const CLIENT_DIST = path.join(__dirname, "..", "..", "client", "dist");

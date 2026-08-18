@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { Mail, Lock, User, School, Loader2, ShieldCheck, ClipboardCheck, Bell, Eye, EyeOff, ArrowRight, Building2, Wrench, CheckCircle2 } from "lucide-react";
+import { Mail, Lock, User, Loader2, ShieldCheck, ClipboardCheck, Bell, Eye, EyeOff, ArrowRight, Building2, Wrench, CheckCircle2, AlertCircle } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { api, errMsg } from "../lib/api.js";
 import { useToast } from "../components/Toast.jsx";
@@ -19,6 +19,7 @@ const DEMO_CREDS = [
   { label: "Admin", email: "admin@campuscareschool.org", pass: "admin123" },
   { label: "Teacher", email: "aarav.sharma@campuscare.test", pass: "user123" },
   { label: "Parent", email: "priya.patel@campuscare.test", pass: "user123" },
+  { label: "Worker", email: "mohammad.ali@campuscare.test", pass: "user123" },
 ];
 
 export default function Login() {
@@ -27,13 +28,15 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mode, setMode] = useState("login");
-  const [schools, setSchools] = useState([]);
   const [showPass, setShowPass] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "parent", schoolId: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "parent", workerType: "" });
+  const [workerTypes, setWorkerTypes] = useState([]);
 
   useEffect(() => {
-    api.get("/issues/meta").then(({ data }) => setSchools(data.schools)).catch(() => {});
+    api.get("/issues/meta").then(({ data }) => {
+      setWorkerTypes(data.workerTypes || []);
+    }).catch(() => {});
   }, []);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -42,9 +45,15 @@ export default function Login() {
     e.preventDefault();
     setBusy(true);
     try {
-      const user = mode === "login" ? await login(form.email, form.password) : await register(form);
-      toast("success", mode === "login" ? `Welcome back, ${user.name}!` : "Account created successfully!");
-      navigate(location.state?.from?.pathname || "/");
+      const res = mode === "login" ? await login(form.email, form.password) : await register(form);
+      if (mode === "register") {
+        toast("success", "Registration submitted! You can sign in once the school administration approves your account.");
+        setMode("login");
+        setForm((f) => ({ ...f, password: "" }));
+      } else {
+        toast("success", `Welcome back, ${res.name}!`);
+        navigate(location.state?.from?.pathname || "/");
+      }
     } catch (err) {
       toast("error", errMsg(err, "Login failed"));
     } finally {
@@ -120,24 +129,29 @@ export default function Login() {
                       <input className="input pl-10" placeholder="e.g. Ananya Gupta" value={form.name} onChange={set("name")} required minLength={3} />
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">I am a</label>
+                    <select className="input capitalize" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value, workerType: "" }))}>
+                      <option value="parent">Parent</option>
+                      <option value="teacher">Teacher</option>
+                      <option value="worker">Worker</option>
+                    </select>
+                  </div>
+                  {form.role === "worker" && (
                     <div>
-                      <label className="label">I am a</label>
-                      <select className="input capitalize" value={form.role} onChange={set("role")}>
-                        <option value="parent">Parent</option>
-                        <option value="teacher">Teacher</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="label">School</label>
-                      <select className="input" value={form.schoolId} onChange={set("schoolId")} required>
-                        <option value="">Select school</option>
-                        {schools.map((s) => (
-                          <option key={s.id} value={s.id}>{s.name}</option>
+                      <label className="label">Worker trade category</label>
+                      <select className="input" value={form.workerType} onChange={set("workerType")} required>
+                        <option value="">Select your trade</option>
+                        {workerTypes.map((t) => (
+                          <option key={t.id} value={t.id}>{t.label}</option>
                         ))}
                       </select>
                     </div>
-                  </div>
+                  )}
+                  <p className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400">
+                    <AlertCircle size={13} className="mt-0.5 shrink-0" />
+                    All registrations are reviewed by the school administration. You can sign in only after your account is approved.
+                  </p>
                 </>
               )}
 
@@ -176,7 +190,7 @@ export default function Login() {
 
             <div className="mt-6">
               <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-widest text-slate-400">Demo accounts — one-click login</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {DEMO_CREDS.map((d) => (
                   <button
                     key={d.label}

@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
-import { MapPin, Clock, ChevronRight, Camera } from "lucide-react";
+import { MapPin, Clock, ChevronRight, Camera, HardHat, ImagePlus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { StatusBadge, PriorityBadge, CategoryBadge } from "./Badges.jsx";
 import { timeAgo } from "../lib/api.js";
 
-export default function IssueCard({ issue, index = 0 }) {
+export default function IssueCard({ issue, index = 0, linkTo = "/issues/" }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -13,7 +13,7 @@ export default function IssueCard({ issue, index = 0 }) {
       whileHover={{ y: -3 }}
     >
       <Link
-        to={`/issues/${issue.id}`}
+        to={`${linkTo}${issue.id}`}
         className="card group block overflow-hidden p-4 transition-shadow hover:shadow-xl hover:shadow-brand-500/10"
       >
         <div className="flex items-start justify-between gap-3">
@@ -44,12 +44,22 @@ export default function IssueCard({ issue, index = 0 }) {
               <Camera size={12} className="text-brand-500" /> {issue.images.length} photo{issue.images.length > 1 ? "s" : ""}
             </span>
           )}
+          {issue.progressImages?.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 text-emerald-500">
+              <ImagePlus size={12} /> {issue.progressImages.length} progress
+            </span>
+          )}
           <CategoryBadge category={issue.category} />
         </div>
 
-        {issue.assignedTo && (
+        {issue.assignedToName && (
           <div className="mt-3 border-t border-dashed border-slate-200 pt-2.5 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
-            <span className="font-medium text-slate-700 dark:text-slate-300">Repair team:</span> {issue.assignedTo}
+            <span className="inline-flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
+              <HardHat size={12} className="text-cyan-500" /> {issue.assignedToName}
+            </span>
+            {issue.assignedToType && (
+              <span className="ml-1.5 capitalize">({issue.assignedToType})</span>
+            )}
           </div>
         )}
       </Link>

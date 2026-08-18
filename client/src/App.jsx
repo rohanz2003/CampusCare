@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Layout from "./components/Layout.jsx";
+import WorkerLayout from "./components/WorkerLayout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import { ToastProvider } from "./components/Toast.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
@@ -12,6 +13,9 @@ import IssueDetail from "./pages/IssueDetail.jsx";
 import NotificationsPage from "./pages/NotificationsPage.jsx";
 import AdminPanel from "./pages/AdminPanel.jsx";
 import Profile from "./pages/Profile.jsx";
+import WorkerDashboard from "./pages/WorkerDashboard.jsx";
+import WorkerWork from "./pages/WorkerWork.jsx";
+import WorkerWorkDetail from "./pages/WorkerWorkDetail.jsx";
 
 function NotFound() {
   return (
@@ -70,6 +74,54 @@ export default function App() {
             element={
               <ProtectedRoute roles={["admin"]}>
                 <AdminPanel />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
+        <Route
+          element={
+            <ProtectedRoute>
+              <WorkerLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route
+            path="/worker"
+            element={
+              <ProtectedRoute roles={["worker"]}>
+                <WorkerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/worker/work"
+            element={
+              <ProtectedRoute roles={["worker"]}>
+                <WorkerWork />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/worker/work/:id"
+            element={
+              <ProtectedRoute roles={["worker"]}>
+                <WorkerWorkDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/worker/notifications"
+            element={
+              <ProtectedRoute roles={["worker"]}>
+                <NotificationsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/worker/profile"
+            element={
+              <ProtectedRoute roles={["worker"]}>
+                <Profile />
               </ProtectedRoute>
             }
           />

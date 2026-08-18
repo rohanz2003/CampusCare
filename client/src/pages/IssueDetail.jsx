@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, MapPin, Clock, Send, User, Loader2, CalendarDays, Hammer, CheckCircle2, BellRing } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Send, User, Loader2, CalendarDays, Hammer, CheckCircle2, BellRing, HardHat, ImagePlus } from "lucide-react";
 import { api, errMsg, timeAgo, fmtDate } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { StatusBadge, PriorityBadge, CategoryBadge } from "../components/Badges.jsx";
 
 const STATUS_OPTIONS = ["Pending", "In Progress", "Resolved"];
-const STAFF = [
-  "Ramesh Kumar (Maintenance)",
-  "Sunita Devi (Electrician)",
-  "Mohammad Ali (Plumber)",
-  "Prakash Joshi (Carpenter)",
-  "Deepa Rao (Sanitation Staff)",
-  "Anil Yadav (General Helper)",
-];
+
+const WORKER_TYPE_LABELS = {
+  carpenter: "Carpenter",
+  electrician: "Electrician",
+  plumber: "Plumber",
+  sanitation: "Sanitation Staff",
+  general: "General Maintenance",
+};
 
 export default function IssueDetail() {
   const { id } = useParams();
@@ -25,6 +25,7 @@ export default function IssueDetail() {
   const [issue, setIssue] = useState(null);
   const [comment, setComment] = useState("");
   const [saving, setSaving] = useState(false);
+  const [workers, setWorkers] = useState([]);
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
@@ -35,6 +36,9 @@ export default function IssueDetail() {
         toast("error", errMsg(e, "Issue not found"));
         navigate("/issues");
       });
+    if (user?.role === "admin") {
+      api.get("/admin/workers").then(({ data }) => setWorkers(data.workers)).catch(() => {});
+    }
   }, [id]);
 
   const update = async (body) => {
@@ -164,10 +168,41 @@ export default function IssueDetail() {
             </div>
           )}
 
+          {issue.progressImages?.length > 0 && (
+            <div className="mt-5">
+              <h4 className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-500">
+                <ImagePlus size={12} /> Progress Photos & Videos
+              </h4>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {issue.progressImages.map((file) =>
+                  /\.(mp4|webm|mov|ogg|avi)$/i.test(file) ? (
+                    <video key={file} src={file} controls className="h-28 w-full rounded-xl border border-slate-200 bg-slate-900 object-cover dark:border-slate-700" />
+                  ) : (
+                    <a key={file} href={file} target="_blank" rel="noreferrer" className="overflow-hidden rounded-xl border border-slate-200 transition-transform hover:scale-[1.03] dark:border-slate-700">
+                      <img src={file} alt="Progress" className="h-28 w-full object-cover" />
+                    </a>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-xl bg-slate-50 p-3.5 dark:bg-slate-800/60">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Repair team</p>
-              <p className="mt-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{issue.assignedTo || "Not assigned yet"}</p>
+              <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                {issue.assignedToName ? (
+                  <>
+                    <HardHat size={13} className="shrink-0 text-cyan-500" />
+                    <span>
+                      {issue.assignedToName}
+                      {issue.assignedToType && <span className="ml-1 font-normal capitalize text-slate-400">({WORKER_TYPE_LABELS[issue.assignedToType] || issue.assignedToType})</span>}
+                    </span>
+                  </>
+                ) : (
+                  "Not assigned yet"
+                )}
+              </p>
             </div>
             <div className="rounded-xl bg-slate-50 p-3.5 dark:bg-slate-800/60">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Estimated resolution</p>
@@ -194,11 +229,23 @@ export default function IssueDetail() {
                   </select>
                 </div>
                 <div>
-                  <label className="label">Assign repair team</label>
-                  <select className="input" value={issue.assignedTo || ""} disabled={saving} onChange={(e) => update({ assignedTo: e.target.value })}>
-                    <option value="">Select staff</option>
-                    {STAFF.map((s) => (
-                      <option key={s}>{s}</option>
+                  <label className="label">Assign repair worker</label>
+                  <select className="input" value={issue.assignedToId || ""} disabled={saving} onChange={(e) => update({ assignedToId: e.target.value })}>
+                    <option value="">Select worker</option>
+                    {workers.length > 0 && Object.entries(
+                      workers.reduce((groups, w) => {
+                        const key = w.workerType || "general";
+                        (groups[key] = groups[key] || []).push(w);
+                        return groups;
+                      }, {})
+                    ).sort(([a], [b]) => a.localeCompare(b)).map(([type, list]) => (
+                      <optgroup key={type} label={WORKER_TYPE_LABELS[type] || type}>
+                        {list.map((w) => (
+                          <option key={w.id} value={w.id}>
+                            {w.name} ({w.activeAssignments} active)
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>

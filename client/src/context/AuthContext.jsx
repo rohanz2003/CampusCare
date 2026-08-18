@@ -34,10 +34,13 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async (payload) => {
     const { data } = await api.post("/auth/register", payload);
-    localStorage.setItem("cc_token", data.token);
-    localStorage.setItem("cc_user", JSON.stringify(data.user));
-    setUser(data.user);
-    return data.user;
+    if (data.token) {
+      localStorage.setItem("cc_token", data.token);
+      localStorage.setItem("cc_user", JSON.stringify(data.user));
+      setUser(data.user);
+      return data.user;
+    }
+    return data;
   }, []);
 
   const logout = useCallback(() => {

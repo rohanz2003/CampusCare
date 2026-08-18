@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import {
   LayoutDashboard, ClipboardList, FileBarChart2, Search, Loader2, Wrench,
   School, CheckCircle2, Clock, AlertTriangle, TrendingUp, Filter, Download,
+  UserCheck, UserX, Inbox, HardHat,
 } from "lucide-react";
 import { api, errMsg, timeAgo } from "../lib/api.js";
 import { useToast } from "../components/Toast.jsx";
@@ -14,17 +15,17 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "issues", label: "Manage Issues", icon: ClipboardList },
+  { id: "requests", label: "Registration Requests", icon: Inbox },
   { id: "reports", label: "Reports & KPIs", icon: FileBarChart2 },
 ];
 
-const STAFF = [
-  "Ramesh Kumar (Maintenance)",
-  "Sunita Devi (Electrician)",
-  "Mohammad Ali (Plumber)",
-  "Prakash Joshi (Carpenter)",
-  "Deepa Rao (Sanitation Staff)",
-  "Anil Yadav (General Helper)",
-];
+const WORKER_TYPE_LABELS = {
+  carpenter: "Carpenter",
+  electrician: "Electrician",
+  plumber: "Plumber",
+  sanitation: "Sanitation Staff",
+  general: "General Maintenance",
+};
 
 export default function AdminPanel() {
   const { toast } = useToast();
@@ -32,14 +33,19 @@ export default function AdminPanel() {
   const [stats, setStats] = useState(null);
   const [report, setReport] = useState(null);
   const [issues, setIssues] = useState(null);
+  const [workers, setWorkers] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [q, setQ] = useState("");
   const [statusF, setStatusF] = useState("");
   const [busyId, setBusyId] = useState(null);
+  const [busyReq, setBusyReq] = useState(null);
 
   const loadAll = () => {
     api.get("/admin/stats").then(({ data }) => setStats(data)).catch(() => {});
     api.get("/admin/reports/summary").then(({ data }) => setReport(data)).catch(() => {});
     api.get("/issues").then(({ data }) => setIssues(data.issues)).catch((e) => toast("error", errMsg(e)));
+    api.get("/admin/workers").then(({ data }) => setWorkers(data.workers)).catch(() => {});
+    api.get("/admin/users?status=pending").then(({ data }) => setRequests(data.users)).catch(() => {});
   };
 
   useEffect(loadAll, []);
@@ -58,6 +64,29 @@ export default function AdminPanel() {
     }
   };
 
+  const decide = async (userId, action) => {
+    setBusyReq(userId);
+    try {
+      await api.patch(`/admin/users/${userId}/decision`, { action });
+      setRequests((prev) => prev.filter((u) => u.id !== userId));
+      loadAll();
+      toast("success", action === "approve" ? "Registration approved" : "Registration rejected");
+    } catch (e) {
+      toast("error", errMsg(e));
+    } finally {
+      setBusyReq(null);
+    }
+  };
+
+  const workersByType = useMemo(() => {
+    const groups = {};
+    workers.forEach((w) => {
+      const key = w.workerType || "general";
+      (groups[key] = groups[key] || []).push(w);
+    });
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b));
+  }, [workers]);
+
   const filtered = useMemo(() => {
     if (!issues) return [];
     return issues.filter((i) => {
@@ -74,7 +103,7 @@ export default function AdminPanel() {
     { title: "Total Issues", value: stats.total, icon: ClipboardList, tone: "brand", trend: 12, trendLabel: "platform-wide" },
     { title: "Resolution Rate", value: `${stats.resolutionRate}%`, icon: TrendingUp, tone: "emerald", sub: `avg ${stats.avgResolutionDays} days to resolve` },
     { title: "Pending Work", value: stats.pending, icon: AlertTriangle, tone: "amber", sub: "awaiting assignment" },
-    { title: "Active Contributors", value: stats.totalUsers, icon: School, tone: "sky", sub: "parents & teachers" },
+    { title: "Active Contributors", value: stats.totalUsers, icon: School, tone: "sky", sub: "approved parents, teachers & workers" },
   ];
 
   const downloadCsv = () => {
@@ -114,6 +143,11 @@ export default function AdminPanel() {
               }`}
             >
               <Icon size={15} /> {label}
+              {id === "requests" && requests.length > 0 && (
+                <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${tab === id ? "bg-brand-600 text-white" : "bg-amber-500 text-white"}`}>
+                  {requests.length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -235,16 +269,25 @@ export default function AdminPanel() {
                       </td>
                       <td className="px-4 py-3">
                         <select
-                          className="input w-52 !py-1.5 text-xs"
-                          value={i.assignedTo || ""}
+                          className="input w-56 !py-1.5 text-xs"
+                          value={i.assignedToId || ""}
                           disabled={busyId === i.id}
-                          onChange={(e) => quickUpdate(i.id, { assignedTo: e.target.value })}
+                          onChange={(e) => quickUpdate(i.id, { assignedToId: e.target.value })}
                         >
                           <option value="">Unassigned</option>
-                          {STAFF.map((s) => (
-                            <option key={s}>{s}</option>
+                          {workersByType.map(([type, list]) => (
+                            <optgroup key={type} label={WORKER_TYPE_LABELS[type] || type}>
+                              {list.map((w) => (
+                                <option key={w.id} value={w.id}>
+                                  {w.name} ({w.activeAssignments} active)
+                                </option>
+                              ))}
+                            </optgroup>
                           ))}
                         </select>
+                        {i.assignedToName && (
+                          <p className="mt-1 text-[10px] font-medium text-slate-400">{i.assignedToName} · {WORKER_TYPE_LABELS[i.assignedToType] || i.assignedToType}</p>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         {busyId === i.id ? (
@@ -261,6 +304,68 @@ export default function AdminPanel() {
               </tbody>
             </table>
           </div>
+        </>
+      )}
+
+      {tab === "requests" && (
+        <>
+          <div className="flex items-center gap-2">
+            <HardHat size={15} className="text-brand-500" />
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              New parent, teacher and worker registrations awaiting your approval. They can only sign in after approval.
+            </p>
+          </div>
+          {requests.length === 0 ? (
+            <div className="card flex flex-col items-center gap-2 py-16 text-center">
+              <Inbox size={32} className="text-slate-300 dark:text-slate-600" />
+              <p className="font-display text-lg font-bold text-slate-700 dark:text-white">No pending requests</p>
+              <p className="text-sm text-slate-400">All registrations have been reviewed.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {requests.map((u, i) => (
+                <motion.div key={u.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="card p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow" style={{ background: u.avatarColor || "#6366f1" }}>
+                      {u.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold text-slate-800 dark:text-white">{u.name}</p>
+                      <p className="truncate text-xs text-slate-400">{u.email}</p>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <span className="chip bg-brand-50 capitalize text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">{u.role}</span>
+                        {u.role === "worker" && (
+                          <span className="chip bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300">
+                            <HardHat size={11} /> {WORKER_TYPE_LABELS[u.workerType] || u.workerType}
+                          </span>
+                        )}
+                        {u.school && u.school !== "Not Specified" && u.school !== "Unregistered School" && (
+                          <span className="chip bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"><School size={11} /> {u.school}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[11px] text-slate-400">Requested {timeAgo(u.createdAt)}</p>
+                  <div className="mt-4 flex gap-2">
+                    <button
+                      onClick={() => decide(u.id, "approve")}
+                      disabled={busyReq === u.id}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-3 py-2 text-xs font-bold text-white transition-all hover:bg-emerald-600 disabled:opacity-60"
+                    >
+                      {busyReq === u.id ? <Loader2 size={13} className="animate-spin" /> : <UserCheck size={13} />} Approve
+                    </button>
+                    <button
+                      onClick={() => decide(u.id, "reject")}
+                      disabled={busyReq === u.id}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-rose-50 px-3 py-2 text-xs font-bold text-rose-600 transition-all hover:bg-rose-100 disabled:opacity-60 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20"
+                    >
+                      <UserX size={13} /> Reject
+                    </button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
