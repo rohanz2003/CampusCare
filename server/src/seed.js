@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { ensureDb, readDb, writeDb } from "./db.js";
+import { connectDb, collections, closeDb } from "./db.js";
 
 const SCHOOLS = [
   { id: "S01", name: "Green Valley High School", city: "Indore", region: "Central Zone" },
@@ -135,13 +135,21 @@ function makeTimeline(issue, worker, resolved, rng, nowIso) {
   return timeline.sort((a, b) => new Date(a.at) - new Date(b.at));
 }
 
-export function seed() {
-  ensureDb();
-  const db = readDb();
-  if (db.users.length > 0 && db.issues.length > 0) {
+async function seed() {
+  await connectDb();
+  const usersColl = collections.users();
+  const issuesColl = collections.issues();
+  const notificationsColl = collections.notifications();
+  const countersColl = collections.counters();
+
+  const existingUsers = await usersColl.countDocuments();
+  const existingIssues = await issuesColl.countDocuments();
+  if (existingUsers > 0 && existingIssues > 0) {
     console.log("Database already seeded. Skipping.");
+    await closeDb();
     return;
   }
+
   const rng = () => Math.random();
   const nowIso = new Date().toISOString();
 
@@ -152,8 +160,9 @@ export function seed() {
   let uid = 0;
   const addUser = (u) => {
     uid += 1;
-    users.push({ id: `U${uid}`, ...u });
-    return users[users.length - 1];
+    const user = { id: `U${uid}`, ...u };
+    users.push(user);
+    return user;
   };
 
   addUser({ name: "Rajesh Iyer", email: "admin@campuscareschool.org", role: "admin", school: SCHOOLS[0].name, schoolId: SCHOOLS[0].id, password: adminPass, avatarColor: "#7c3aed", status: "approved", createdAt: new Date(Date.now() - 90 * 86400000).toISOString() });
@@ -196,6 +205,26 @@ export function seed() {
       avatarColor: "#64748b", status: "pending", createdAt: randomDate(3, rng),
     });
   }
+
+  // Insert users
+  await usersColl.insertMany(users);
+
+  // Seed schools
+  const schoolsColl = collections.schools();
+  await schoolsColl.deleteMany({});
+  await schoolsColl.insertMany(SCHOOLS);
+
+  // Seed categories and worker types in counters
+  await countersColl.updateOne(
+    { _id: "category" },
+    { $set: { categories: CATEGORIES } },
+    { upsert: true }
+  );
+  await countersColl.updateOne(
+    { _id: "workerType" },
+    { $set: { workerTypes: WORKER_TYPES } },
+    { upsert: true }
+  );
 
   const issues = [];
   const notifications = [];
@@ -266,16 +295,32 @@ export function seed() {
     }
   }
 
-  db.users = users;
-  db.issues = issues;
-  db.notifications = notifications;
-  db.schools = SCHOOLS;
-  db.categories = CATEGORIES;
-  db.workerTypes = WORKER_TYPES;
-  db.counters = { user: users.length, issue: 1000 + issues.length, notification: notifId };
-  writeDb(db);
+  // Insert issues and notifications
+  await issuesColl.insertMany(issues);
+  await notificationsColl.insertMany(notifications);
+
+  // Update counters
+  await countersColl.updateOne(
+    { _id: "user" },
+    { $set: { seq: users.length } },
+    { upsert: true }
+  );
+  await countersColl.updateOne(
+    { _id: "issue" },
+    { $set: { seq: 1000 + issues.length } },
+    { upsert: true }
+  );
+  await countersColl.updateOne(
+    { _id: "notification" },
+    { $set: { seq: notifId } },
+    { upsert: true }
+  );
 
   console.log(`Seeded: ${users.length} users (${Object.keys(workers).length} workers, ${PENDING_SEED.length} pending), ${issues.length} issues, ${notifications.length} notifications.`);
+  await closeDb();
 }
 
-seed();
+seed().catch(err => {
+  console.error(err);
+  process.exit(1);
+});

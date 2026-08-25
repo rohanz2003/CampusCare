@@ -1,5 +1,5 @@
 import jwt from "jsonwebtoken";
-import { readDb } from "../db.js";
+import { collections } from "../db.js";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "campuscare_super_secret_key_2026";
 export const TOKEN_TTL = "7d";
@@ -14,11 +14,15 @@ export function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ message: "Authentication required" });
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    const db = readDb();
-    const user = db.users.find((u) => u.id === payload.id);
-    if (!user) return res.status(401).json({ message: "Account no longer exists" });
-    req.user = user;
-    next();
+    const users = collections.users();
+    users.findOne({ id: payload.id }).then(user => {
+      if (!user) return res.status(401).json({ message: "Account no longer exists" });
+      req.user = user;
+      next();
+    }).catch(err => {
+      console.error(err);
+      res.status(500).json({ message: "Internal server error" });
+    });
   } catch {
     return res.status(401).json({ message: "Invalid or expired token" });
   }

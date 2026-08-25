@@ -1,37 +1,50 @@
 import { Router } from "express";
-import { readDb, writeDb } from "../db.js";
+import { collections } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
-router.get("/", requireAuth, (req, res) => {
-  const db = readDb();
-  let items = db.notifications
-    .filter((n) => n.userId === req.user.id)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  const unread = items.filter((n) => !n.read).length;
-  res.json({ notifications: items, unread });
+router.get("/", requireAuth, async (req, res) => {
+  try {
+    const notifications = collections.notifications();
+    const items = await notifications
+      .find({ userId: req.user.id })
+      .sort({ createdAt: -1 })
+      .toArray();
+    const unread = items.filter((n) => !n.read).length;
+    res.json({ notifications: items, unread });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal server error" });
+  }
 });
 
-router.patch("/:id/read", requireAuth, (req, res) => {
-  const db = readDb();
-  const n = db.notifications.find((x) => x.id === req.params.id);
-  if (!n) return res.status(404).json({ message: "Notification not found" });
-  if (n.userId !== req.user.id) {
-    return res.status(403).json({ message: "Not allowed" });
+router.patch("/:id/read", requireAuth, async (req, res) => {
+  try {
+    const notifications = collections.notifications();
+    const n = await notifications.findOne({ id: req.params.id });
+    if (!n) return res.status(404).json({ message: "Notification not found" });
+    if (n.userId !== req.user.id) {
+      return res.status(403).json({ message: "Not allowed" });
+    }
+    await notifications.updateOne({ id: req.params.id }, { $set: { read: true } });
+    const updated = await notifications.findOne({ id: req.params.id });
+    res.json({ notification: updated });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal server error" });
   }
-  n.read = true;
-  writeDb(db);
-  res.json({ notification: n });
 });
 
-router.post("/read-all", requireAuth, (req, res) => {
-  const db = readDb();
-  for (const n of db.notifications) {
-    if (n.userId === req.user.id) n.read = true;
+router.post("/read-all", requireAuth, async (req, res) => {
+  try {
+    const notifications = collections.notifications();
+    await notifications.updateMany({ userId: req.user.id }, { $set: { read: true } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal server error" });
   }
-  writeDb(db);
-  res.json({ ok: true });
 });
 
 export default router;

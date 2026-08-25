@@ -14,14 +14,24 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem("cc_token")) return;
+    if (!localStorage.getItem("cc_token")) {
+      setLoading(false);
+      return;
+    }
     api
       .get("/auth/me")
       .then((res) => {
         setUser(res.data.user);
         localStorage.setItem("cc_user", JSON.stringify(res.data.user));
       })
-      .catch(() => {});
+      .catch(() => {
+        localStorage.removeItem("cc_token");
+        localStorage.removeItem("cc_user");
+        setUser(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   const login = useCallback(async (email, password) => {

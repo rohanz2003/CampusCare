@@ -5,7 +5,7 @@ import path from "node:path";
 import fs from "node:fs";
 import multer from "multer";
 import { fileURLToPath } from "node:url";
-import { readDb, writeDb } from "./db.js";
+import { connectDb, collections } from "./db.js";
 import { requireAuth } from "./middleware/auth.js";
 import { upload, UPLOAD_DIR } from "./middleware/upload.js";
 import authRoutes from "./routes/auth.js";
@@ -26,19 +26,26 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(UPLOAD_DIR));
 
-app.post("/api/issues/:id/images", requireAuth, upload.array("images", 4), (req, res) => {
-  const db = readDb();
-  const issue = db.issues.find((i) => i.id === req.params.id);
-  if (!issue) return res.status(404).json({ message: "Issue not found" });
-  if (req.user.role !== "admin" && issue.reporterId !== req.user.id) {
-    return res.status(403).json({ message: "You can only attach images to your own reports" });
+app.post("/api/issues/:id/images", requireAuth, upload.array("images", 4), async (req, res) => {
+  try {
+    const issues = collections.issues();
+    const issue = await issues.findOne({ id: req.params.id });
+    if (!issue) return res.status(404).json({ message: "Issue not found" });
+    if (req.user.role !== "admin" && issue.reporterId !== req.user.id) {
+      return res.status(403).json({ message: "You can only attach images to your own reports" });
+    }
+    const files = (req.files || []).map((f) => `/uploads/${f.filename}`);
+    const images = [...(issue.images || []), ...files];
+    await issues.updateOne(
+      { id: req.params.id },
+      { $set: { images, updatedAt: new Date().toISOString() } }
+    );
+    const updated = await issues.findOne({ id: req.params.id });
+    res.json({ issue: updated });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Internal server error" });
   }
-  const files = (req.files || []).map((f) => `/uploads/${f.filename}`);
-  issue.images = issue.images || [];
-  issue.images.push(...files);
-  issue.updatedAt = new Date().toISOString();
-  writeDb(db);
-  res.json({ issue });
 });
 
 app.get("/api/health", (_req, res) => res.json({ ok: true, service: "campuscare-api" }));
@@ -73,6 +80,8 @@ app.use((err, _req, res, _next) => {
   console.error(err);
   res.status(500).json({ message: "Internal server error" });
 });
+
+await connectDb();
 
 app.listen(PORT, () => {
   console.log(`CampusCare API running on http://localhost:${PORT}`);

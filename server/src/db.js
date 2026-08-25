@@ -1,38 +1,48 @@
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { MongoClient } from "mongodb";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, "..", "data");
-const DB_FILE = path.join(DATA_DIR, "db.json");
+let db;
+let client;
 
-const DEFAULT_DB = { users: [], issues: [], notifications: [], counters: { user: 0, issue: 0, notification: 0 } };
+export async function connectDb() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error("MONGODB_URI not set");
+  client = new MongoClient(uri);
+  await client.connect();
+  db = client.db("campuscare");
+  console.log("MongoDB connected");
+  await seedDefaultData();
+  return db;
+}
 
-export function ensureDb() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(DB_FILE)) {
-    fs.writeFileSync(DB_FILE, JSON.stringify(DEFAULT_DB, null, 2));
+export function getDb() {
+  if (!db) throw new Error("DB not connected. Call connectDb() first.");
+  return db;
+}
+
+export async function closeDb() {
+  if (client) await client.close();
+}
+
+export const collections = {
+  users: () => getDb().collection("users"),
+  issues: () => getDb().collection("issues"),
+  notifications: () => getDb().collection("notifications"),
+  counters: () => getDb().collection("counters"),
+  schools: () => getDb().collection("schools"),
+};
+
+async function seedDefaultData() {
+  const schools = collections.schools();
+  const count = await schools.countDocuments();
+  if (count === 0) {
+    await schools.insertMany([
+      { id: "S01", name: "Green Valley High School", city: "Indore", region: "Central Zone" },
+      { id: "S02", name: "Sunrise Public School", city: "Bhopal", region: "North Zone" },
+      { id: "S03", name: "Little Stars Academy", city: "Ujjain", region: "West Zone" },
+      { id: "S04", name: "Mahatma Gandhi Memorial School", city: "Dewas", region: "East Zone" },
+    ]);
+    console.log("Seeded default schools");
   }
-}
-
-export function readDb() {
-  ensureDb();
-  const raw = fs.readFileSync(DB_FILE, "utf8");
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return structuredClone(DEFAULT_DB);
-  }
-}
-
-export function writeDb(db) {
-  ensureDb();
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-}
-
-export function nextId(db, key) {
-  db.counters[key] = (db.counters[key] || 0) + 1;
-  return db.counters[key];
 }
 
 export function publicUser(u) {
