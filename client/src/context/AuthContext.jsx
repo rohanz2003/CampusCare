@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api.js";
 
 const AuthContext = createContext(null);
@@ -11,7 +12,8 @@ export function AuthProvider({ children }) {
       return null;
     }
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!localStorage.getItem("cc_token")) {
@@ -57,7 +59,8 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("cc_token");
     localStorage.removeItem("cc_user");
     setUser(null);
-  }, []);
+    navigate("/login", { replace: true });
+  }, [navigate]);
 
   return (
     <AuthContext.Provider value={{ user, login, register, logout, loading, setLoading }}>
