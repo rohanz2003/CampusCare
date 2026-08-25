@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Camera, Loader2, MapPin, HardHat, Send, ImagePlus, Video, Clock, User } from "lucide-react";
+import { ArrowLeft, Camera, Loader2, MapPin, HardHat, Send, ImagePlus, Video, Clock, User, X } from "lucide-react";
 import { api, errMsg, timeAgo } from "../lib/api.js";
 import { useToast } from "../components/Toast.jsx";
 import { StatusBadge, PriorityBadge, CategoryBadge } from "../components/Badges.jsx";
@@ -181,7 +181,7 @@ export default function WorkerWorkDetail() {
                   <div key={i} className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
                     {f.type.startsWith("video") ? <Video size={12} className="text-rose-400" /> : <ImagePlus size={12} className="text-emerald-400" />}
                     {f.name}
-                    <button type="button" className="ml-1 text-slate-400 hover:text-rose-500" onClick={() => setFiles(files.filter((_, j) => j !== i))}>✕</button>
+                    <button type="button" className="ml-1 text-slate-400 hover:text-rose-500" onClick={() => setFiles(files.filter((_, j) => j !== i))}><X size={12} /></button>
                   </div>
                 ))}
               </div>

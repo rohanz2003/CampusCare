@@ -3,11 +3,10 @@ import { motion } from "framer-motion";
 import { Search, Filter, ClipboardList, X, Loader2 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
-import IssueCard from "../components/IssueCard.jsx";
-import { StatusBadge } from "../components/Badges.jsx";
+import IssueTable from "../components/IssueTable.jsx";
 
 const FILTER_BUTTON = (active) =>
-  `rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
+  `shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
     active ? "bg-brand-600 text-white shadow-md shadow-brand-500/25" : "bg-white text-slate-500 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800"
   }`;
 
@@ -57,7 +56,7 @@ export default function Tracking() {
             {user?.role === "admin" ? "All issues across your schools" : "Follow the lifecycle of every issue you reported"}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:overflow-visible sm:px-0 sm:pb-0">
           {[
             ["", "All", counts.all],
             ["Pending", "Pending", counts.Pending],
@@ -126,11 +125,7 @@ export default function Tracking() {
           <p className="max-w-xs text-xs text-slate-400 dark:text-slate-500">Try clearing filters or report a new issue to get started.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((issue, i) => (
-            <IssueCard key={issue.id} issue={issue} index={i} />
-          ))}
-        </div>
+        <IssueTable issues={filtered} />
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import express from "express";
+import dotenv from "dotenv";
 import cors from "cors";
 import path from "node:path";
 import fs from "node:fs";
@@ -15,8 +16,10 @@ import notificationRoutes from "./routes/notifications.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+dotenv.config({ path: path.join(__dirname, "..", ".env") });
+
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 5003;
 
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
@@ -30,7 +33,8 @@ app.post("/api/issues/:id/images", requireAuth, upload.array("images", 4), (req,
   if (req.user.role !== "admin" && issue.reporterId !== req.user.id) {
     return res.status(403).json({ message: "You can only attach images to your own reports" });
   }
-  const files = req.files.map((f) => `/uploads/${f.filename}`);
+  const files = (req.files || []).map((f) => `/uploads/${f.filename}`);
+  issue.images = issue.images || [];
   issue.images.push(...files);
   issue.updatedAt = new Date().toISOString();
   writeDb(db);

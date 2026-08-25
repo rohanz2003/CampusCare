@@ -6,11 +6,10 @@ import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
 import { api } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import StatCard from "../components/StatCard.jsx";
-import IssueCard from "../components/IssueCard.jsx";
+import IssueTable from "../components/IssueTable.jsx";
 import { CATEGORY_META } from "../components/Badges.jsx";
-
-const STATUS_COLORS = { Pending: "#f59e0b", "In Progress": "#0ea5e9", Resolved: "#10b981" };
-const PRIO_COLORS = { Low: "#94a3b8", Medium: "#f59e0b", High: "#f97316", Critical: "#f43f5e" };
+import ChartTooltip from "../components/ui/ChartTooltip.jsx";
+import { STATUS_COLORS, PRIORITY_COLORS } from "../lib/ui.js";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -24,7 +23,7 @@ export default function Dashboard() {
 
   const statusData = stats ? Object.entries(stats.byStatus).map(([name, value]) => ({ name, value })) : [];
   const priorityData = stats ? Object.entries(stats.byPriority).map(([name, value]) => ({ name, value })) : [];
-  const categoryData = stats ? Object.entries(stats.byCategory).map(([id, c]) => ({ name: CATEGORY_META[id]?.label || id, value: c.count, icon: CATEGORY_META[id]?.icon || "📋" })) : [];
+  const categoryData = stats ? Object.entries(stats.byCategory).map(([id, c]) => ({ name: CATEGORY_META[id]?.label || id, value: c.count, icon: CATEGORY_META[id]?.icon })) : [];
 
   return (
     <div className="space-y-6">
@@ -83,7 +82,7 @@ export default function Dashboard() {
                     <Cell key={entry.name} fill={STATUS_COLORS[entry.name]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff" }} />
+                <Tooltip content={<ChartTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -110,10 +109,10 @@ export default function Dashboard() {
                 <YAxis type="category" dataKey="name" width={64} tick={{ fontSize: 11, fill: "#94a3b8" }} />
                 <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={18}>
                   {priorityData.map((p) => (
-                    <Cell key={p.name} fill={PRIO_COLORS[p.name]} />
+                    <Cell key={p.name} fill={PRIORITY_COLORS[p.name]} />
                   ))}
                 </Bar>
-                <Tooltip cursor={{ fill: "rgba(99,102,241,0.06)" }} contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff" }} />
+                <Tooltip cursor={{ fill: "rgba(37,99,235,0.06)" }} content={<ChartTooltip />} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -131,7 +130,7 @@ export default function Dashboard() {
               .map((c, i) => (
                 <div key={c.name}>
                   <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="font-medium text-slate-600 dark:text-slate-300">{c.icon} {c.name}</span>
+                    <span className="flex items-center gap-1.5 font-medium text-slate-600 dark:text-slate-300">{c.icon && <c.icon size={14} className="text-brand-500" />} {c.name}</span>
                     <span className="font-bold text-slate-500 dark:text-slate-400">{c.value}</span>
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
@@ -158,11 +157,7 @@ export default function Dashboard() {
         {recent.length === 0 ? (
           <div className="py-10 text-center text-sm text-slate-400">No issues reported yet.</div>
         ) : (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {recent.map((issue, i) => (
-              <IssueCard key={issue.id} issue={issue} index={i} />
-            ))}
-          </div>
+          <IssueTable issues={recent} max={5} />
         )}
       </div>
     </div>

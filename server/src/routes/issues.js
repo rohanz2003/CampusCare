@@ -81,7 +81,7 @@ router.get("/", requireAuth, (req, res) => {
     items = items.filter((i) => i.title.toLowerCase().includes(needle) || i.location.toLowerCase().includes(needle) || i.id.toLowerCase().includes(needle));
   }
   if (reporter && isAdmin) items = items.filter((i) => i.reporterId === reporter);
-  if (assigned && isAdmin) items = items.filter((i) => i.assignedTo === assigned);
+  if (assigned && isAdmin) items = items.filter((i) => i.assignedToId === assigned);
 
   items = items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   res.json({ issues: items });
@@ -117,13 +117,16 @@ router.post("/", requireAuth, (req, res) => {
     location: location.trim(),
     priority,
     status: "Pending",
-    assignedTo: null,
+    assignedToId: null,
+    assignedToName: null,
+    assignedToType: null,
     reporterId: req.user.id,
     reporterName: req.user.name,
     reporterRole: req.user.role,
     school: req.user.school,
     schoolId: req.user.schoolId,
     images: [],
+    progressImages: [],
     estimatedResolution: "3 days",
     resolvedAt: null,
     timeline: [{ action: "Issue reported and logged in the system", at: now, by: req.user.name }],

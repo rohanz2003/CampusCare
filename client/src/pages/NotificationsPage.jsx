@@ -6,6 +6,7 @@ import { api } from "../lib/api.js";
 import { useNotifications } from "../hooks/useNotifications.js";
 import { timeAgo } from "../lib/api.js";
 import { useToast } from "../components/Toast.jsx";
+import { useAuth } from "../context/AuthContext.jsx";
 
 const ICONS = {
   pending: <Clock size={16} className="text-amber-500" />,
@@ -16,7 +17,9 @@ const ICONS = {
 export default function NotificationsPage() {
   const { items, unread, setUnread, setItems, load } = useNotifications();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [busy, setBusy] = useState(false);
+  const issueBase = user?.role === "worker" ? "/worker/work/" : "/issues/";
 
   const markRead = async (id) => {
     try {
@@ -95,7 +98,7 @@ export default function NotificationsPage() {
                 </div>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{n.message}</p>
                 {n.issueId && (
-                  <Link to={`/issues/${n.issueId}`} onClick={() => markRead(n.id)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline dark:text-brand-400">
+                  <Link to={`${issueBase}${n.issueId}`} onClick={() => markRead(n.id)} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline dark:text-brand-400">
                     View issue {n.issueId} →
                   </Link>
                 )}

@@ -18,6 +18,15 @@ import ThemeToggle from "./ThemeToggle.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useNotifications } from "../hooks/useNotifications.js";
 
+const TITLES = [
+  { path: "/dashboard", label: "Dashboard", eyebrow: "Overview" },
+  { path: "/report", label: "Report an Issue", eyebrow: "New report" },
+  { path: "/issues", label: "Repair Tracking", eyebrow: "Your issues" },
+  { path: "/notifications", label: "Notifications", eyebrow: "Activity" },
+  { path: "/admin", label: "Admin Panel", eyebrow: "Management" },
+  { path: "/profile", label: "My Profile", eyebrow: "Account" },
+];
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -29,14 +38,14 @@ export default function Layout() {
   const links = useMemo(() => {
     if (user?.role === "admin") {
       return [
-        { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+        { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
         { to: "/admin", label: "Admin Panel", icon: ShieldCheck },
         { to: "/notifications", label: "Notifications", icon: Bell, badge: unread },
         { to: "/profile", label: "My Profile", icon: User },
       ];
     }
     return [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, end: true },
       { to: "/report", label: "Report Issue", icon: PlusCircle },
       { to: "/issues", label: "Track Issues", icon: ClipboardList },
       { to: "/notifications", label: "Notifications", icon: Bell, badge: unread },
@@ -50,6 +59,10 @@ export default function Layout() {
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+  const current =
+    TITLES.find((t) => location.pathname === t.path || location.pathname.startsWith(t.path + "/")) ||
+    (location.pathname.startsWith("/issues") ? { label: "Repair Tracking", eyebrow: "Your issues" } : null);
 
   const sidebar = (
     <div className="flex h-full flex-col">
@@ -73,10 +86,21 @@ export default function Layout() {
           >
             {({ isActive }) => (
               <>
+                {isActive && (
+                  <motion.span
+                    layoutId="nav-active"
+                    className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-brand-600 to-brand-500"
+                    transition={{ type: "spring", damping: 24, stiffness: 300 }}
+                  />
+                )}
                 <Icon size={18} className={isActive ? "" : "text-slate-400 group-hover:text-brand-500"} />
                 <span className="flex-1">{label}</span>
                 {badge > 0 && (
-                  <span className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${isActive ? "bg-white text-brand-600" : "bg-brand-500 text-white"}`}>
+                  <span
+                    className={`flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-bold ${
+                      isActive ? "bg-white text-brand-600" : "bg-brand-500 text-white"
+                    }`}
+                  >
                     {badge}
                   </span>
                 )}
@@ -89,7 +113,7 @@ export default function Layout() {
         <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-2.5 dark:bg-slate-800/60">
           <div
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow"
-            style={{ background: user?.avatarColor || "#6366f1" }}
+            style={{ background: user?.avatarColor || "#2563eb" }}
           >
             {initials}
           </div>
@@ -118,15 +142,18 @@ export default function Layout() {
       </aside>
 
       {mobileOpen && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 lg:hidden">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
           <motion.aside
-            initial={{ x: -280 }}
+            initial={{ x: -300 }}
             animate={{ x: 0 }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="absolute inset-y-0 left-0 w-72 bg-white shadow-2xl dark:bg-slate-900"
+            className="absolute inset-y-0 left-0 w-[17rem] max-w-[82vw] bg-white shadow-2xl dark:bg-slate-900"
           >
-            <button onClick={() => setMobileOpen(false)} className="absolute right-3 top-4 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="absolute right-3 top-4 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            >
               <X size={18} />
             </button>
             {sidebar}
@@ -137,27 +164,31 @@ export default function Layout() {
       <div className="lg:pl-64">
         <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/70 backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/70">
           <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
-            <button onClick={() => setMobileOpen(true)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden dark:hover:bg-slate-800">
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden dark:hover:bg-slate-800"
+              aria-label="Open menu"
+            >
               <Menu size={20} />
             </button>
-            <div className="flex-1">
-              <p className="text-sm font-semibold capitalize text-slate-500 dark:text-slate-400">
-                {location.pathname === "/" ? "Good day" : location.pathname.split("/")[1] === "" ? "" : ""}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-brand-500 dark:text-brand-400">
+                {current?.eyebrow || "CampusCare"}
               </p>
-              <h1 className="font-display text-lg font-bold text-slate-900 dark:text-white">
-                {location.pathname === "/" && "Dashboard"}
-                {location.pathname === "/report" && "Report an Issue"}
-                {location.pathname.startsWith("/issues") && "Repair Tracking"}
-                {location.pathname === "/notifications" && "Notifications"}
-                {location.pathname === "/admin" && "Admin Panel"}
-                {location.pathname === "/profile" && "My Profile"}
+              <h1 className="truncate font-display text-lg font-bold text-slate-900 dark:text-white">
+                {current?.label || "CampusCare"}
               </h1>
             </div>
             <ThemeToggle />
           </div>
         </header>
         <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-          <motion.div key={location.pathname} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <Outlet />
           </motion.div>
         </main>

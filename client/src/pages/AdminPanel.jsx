@@ -11,6 +11,8 @@ import { useToast } from "../components/Toast.jsx";
 import StatCard from "../components/StatCard.jsx";
 import { StatusBadge, PriorityBadge, CategoryBadge } from "../components/Badges.jsx";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
+import ChartTooltip from "../components/ui/ChartTooltip.jsx";
+import { workerTypeLabel } from "../lib/ui.js";
 
 const TABS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
@@ -18,14 +20,6 @@ const TABS = [
   { id: "requests", label: "Registration Requests", icon: Inbox },
   { id: "reports", label: "Reports & KPIs", icon: FileBarChart2 },
 ];
-
-const WORKER_TYPE_LABELS = {
-  carpenter: "Carpenter",
-  electrician: "Electrician",
-  plumber: "Plumber",
-  sanitation: "Sanitation Staff",
-  general: "General Maintenance",
-};
 
 export default function AdminPanel() {
   const { toast } = useToast();
@@ -133,12 +127,12 @@ export default function AdminPanel() {
           <h2 className="font-display text-xl font-bold text-slate-900 dark:text-white">Administration Panel</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">Assign repair tasks, update statuses and monitor school performance</p>
         </div>
-        <div className="flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
+        <div className="no-scrollbar flex max-w-full overflow-x-auto rounded-xl bg-slate-100 p-1 dark:bg-slate-800">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
+              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-4 py-2 text-sm font-semibold transition-all ${
                 tab === id ? "bg-white text-brand-600 shadow dark:bg-slate-900 dark:text-brand-400" : "text-slate-500"
               }`}
             >
@@ -174,7 +168,7 @@ export default function AdminPanel() {
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" vertical={false} />
                         <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#94a3b8" }} />
                         <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
-                        <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff" }} />
+                        <Tooltip content={<ChartTooltip />} />
                         <Bar dataKey="value" name="Issues" radius={[8, 8, 0, 0]}>
                           {Object.entries(stats.byStatus).map(([name]) => (
                             <Cell key={name} fill={name === "Resolved" ? "#10b981" : name === "In Progress" ? "#0ea5e9" : "#f59e0b"} />
@@ -276,7 +270,7 @@ export default function AdminPanel() {
                         >
                           <option value="">Unassigned</option>
                           {workersByType.map(([type, list]) => (
-                            <optgroup key={type} label={WORKER_TYPE_LABELS[type] || type}>
+                            <optgroup key={type} label={workerTypeLabel(type)}>
                               {list.map((w) => (
                                 <option key={w.id} value={w.id}>
                                   {w.name} ({w.activeAssignments} active)
@@ -286,7 +280,7 @@ export default function AdminPanel() {
                           ))}
                         </select>
                         {i.assignedToName && (
-                          <p className="mt-1 text-[10px] font-medium text-slate-400">{i.assignedToName} · {WORKER_TYPE_LABELS[i.assignedToType] || i.assignedToType}</p>
+                          <p className="mt-1 text-[10px] font-medium text-slate-400">{i.assignedToName} · {workerTypeLabel(i.assignedToType)}</p>
                         )}
                       </td>
                       <td className="px-4 py-3">
@@ -326,7 +320,7 @@ export default function AdminPanel() {
               {requests.map((u, i) => (
                 <motion.div key={u.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }} className="card p-5">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow" style={{ background: u.avatarColor || "#6366f1" }}>
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow" style={{ background: u.avatarColor || "#2563eb" }}>
                       {u.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -336,7 +330,7 @@ export default function AdminPanel() {
                         <span className="chip bg-brand-50 capitalize text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">{u.role}</span>
                         {u.role === "worker" && (
                           <span className="chip bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300">
-                            <HardHat size={11} /> {WORKER_TYPE_LABELS[u.workerType] || u.workerType}
+                            <HardHat size={11} /> {workerTypeLabel(u.workerType)}
                           </span>
                         )}
                         {u.school && u.school !== "Not Specified" && u.school !== "Unregistered School" && (
@@ -388,8 +382,8 @@ export default function AdminPanel() {
                     <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
                     <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
                     <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 10, fill: "#94a3b8" }} />
-                    <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff" }} />
-                    <Bar dataKey="total" name="Total" stackId="a" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Bar dataKey="total" name="Total" stackId="a" fill="#2563eb" radius={[0, 4, 4, 0]} />
                     <Bar dataKey="inProgress" name="In Progress" stackId="a" fill="#0ea5e9" />
                     <Bar dataKey="resolved" name="Resolved" stackId="a" fill="#10b981" radius={[0, 4, 4, 0]} />
                   </BarChart>

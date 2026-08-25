@@ -1,3 +1,5 @@
+import { Armchair, Zap, Toilet, Droplets, ShieldCheck, Building2, ClipboardList } from "lucide-react";
+
 const STYLES = {
   Pending: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400",
   "In Progress": "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400",
@@ -31,20 +33,21 @@ export function PriorityBadge({ priority }) {
 }
 
 export const CATEGORY_META = {
-  furniture: { label: "Classroom Furniture", icon: "🪑" },
-  electrical: { label: "Electrical / Wiring", icon: "⚡" },
-  sanitation: { label: "Sanitation & Toilets", icon: "🚻" },
-  plumbing: { label: "Plumbing / Water", icon: "🚰" },
-  safety: { label: "Safety & Security", icon: "🛡️" },
-  infrastructure: { label: "Building / Infrastructure", icon: "🏫" },
-  other: { label: "Other", icon: "📋" },
+  furniture: { label: "Classroom Furniture", icon: Armchair },
+  electrical: { label: "Electrical / Wiring", icon: Zap },
+  sanitation: { label: "Sanitation & Toilets", icon: Toilet },
+  plumbing: { label: "Plumbing / Water", icon: Droplets },
+  safety: { label: "Safety & Security", icon: ShieldCheck },
+  infrastructure: { label: "Building / Infrastructure", icon: Building2 },
+  other: { label: "Other", icon: ClipboardList },
 };
 
 export function CategoryBadge({ category }) {
   const meta = CATEGORY_META[category] || CATEGORY_META.other;
+  const Icon = meta.icon;
   return (
     <span className="chip bg-brand-50 text-brand-700 dark:bg-brand-500/10 dark:text-brand-300">
-      {meta.icon} {meta.label}
+      <Icon size={13} /> {meta.label}
     </span>
   );
 }

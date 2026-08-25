@@ -5,6 +5,7 @@ import { Send, ImagePlus, X, Loader2, MapPin, AlertCircle, Star } from "lucide-r
 import { api, errMsg } from "../lib/api.js";
 import { useToast } from "../components/Toast.jsx";
 import { CATEGORY_META } from "../components/Badges.jsx";
+import Select from "../components/ui/Select.jsx";
 
 const PRIORITY_INFO = {
   Low: { desc: "Minor issue — can be fixed during routine maintenance", tone: "border-slate-300 dark:border-slate-600" },
@@ -98,12 +99,12 @@ export default function ReportIssue() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="label">Category *</label>
-                <select className="input" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}>
-                  <option value="">Select category</option>
-                  {Object.entries(CATEGORY_META).map(([id, c]) => (
-                    <option key={id} value={id}>{c.icon} {c.label}</option>
-                  ))}
-                </select>
+                <Select
+                  value={form.category}
+                  onChange={(val) => setForm((f) => ({ ...f, category: val }))}
+                  placeholder="Select category"
+                  options={Object.entries(CATEGORY_META).map(([id, c]) => ({ value: id, label: c.label, icon: c.icon }))}
+                />
                 {errors.category && <p className="mt-1.5 text-xs font-medium text-rose-500">{errors.category}</p>}
               </div>
               <div>

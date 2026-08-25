@@ -6,16 +6,9 @@ import { api, errMsg, timeAgo, fmtDate } from "../lib/api.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { StatusBadge, PriorityBadge, CategoryBadge } from "../components/Badges.jsx";
+import { workerTypeLabel } from "../lib/ui.js";
 
 const STATUS_OPTIONS = ["Pending", "In Progress", "Resolved"];
-
-const WORKER_TYPE_LABELS = {
-  carpenter: "Carpenter",
-  electrician: "Electrician",
-  plumber: "Plumber",
-  sanitation: "Sanitation Staff",
-  general: "General Maintenance",
-};
 
 export default function IssueDetail() {
   const { id } = useParams();
@@ -196,7 +189,7 @@ export default function IssueDetail() {
                     <HardHat size={13} className="shrink-0 text-cyan-500" />
                     <span>
                       {issue.assignedToName}
-                      {issue.assignedToType && <span className="ml-1 font-normal capitalize text-slate-400">({WORKER_TYPE_LABELS[issue.assignedToType] || issue.assignedToType})</span>}
+                      {issue.assignedToType && <span className="ml-1 font-normal capitalize text-slate-400">({workerTypeLabel(issue.assignedToType)})</span>}
                     </span>
                   </>
                 ) : (
@@ -239,7 +232,7 @@ export default function IssueDetail() {
                         return groups;
                       }, {})
                     ).sort(([a], [b]) => a.localeCompare(b)).map(([type, list]) => (
-                      <optgroup key={type} label={WORKER_TYPE_LABELS[type] || type}>
+                      <optgroup key={type} label={workerTypeLabel(type)}>
                         {list.map((w) => (
                           <option key={w.id} value={w.id}>
                             {w.name} ({w.activeAssignments} active)

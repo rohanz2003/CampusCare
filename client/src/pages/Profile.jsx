@@ -11,16 +11,8 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { api, timeAgo } from "../lib/api.js";
 import { useToast } from "../components/Toast.jsx";
 import { useNotifications } from "../hooks/useNotifications.js";
-
-const WORKER_TYPE_LABELS = {
-  carpenter: "Carpenter",
-  electrician: "Electrician",
-  plumber: "Plumber",
-  sanitation: "Sanitation Staff",
-  general: "General Maintenance",
-};
-
-const STATUS_COLORS = { Pending: "#f59e0b", "In Progress": "#0ea5e9", Resolved: "#10b981" };
+import ChartTooltip from "../components/ui/ChartTooltip.jsx";
+import { STATUS_COLORS, workerTypeLabel } from "../lib/ui.js";
 
 const ROLE_META = {
   admin: { label: "Administrator", desc: "School administration · full platform access", icon: ShieldCheck },
@@ -89,11 +81,11 @@ export default function Profile() {
 
   const accountInfo = [
     { icon: Mail, label: "Email address", value: user?.email },
-    { icon: ShieldCheck, label: "Account role", value: roleMeta.label, chip: isWorker ? (WORKER_TYPE_LABELS[user?.workerType] || user?.workerType) : null },
+    { icon: ShieldCheck, label: "Account role", value: roleMeta.label, chip: isWorker ? workerTypeLabel(user?.workerType) : null },
     ...(hasSchool(user?.school)
       ? [{ icon: School, label: "School", value: user?.school }]
       : isWorker
-        ? [{ icon: HardHat, label: "Trade category", value: WORKER_TYPE_LABELS[user?.workerType] || user?.workerType }]
+        ? [{ icon: HardHat, label: "Trade category", value: workerTypeLabel(user?.workerType) }]
         : []),
     { icon: CalendarDays, label: "Member since", value: memberSince },
   ];
@@ -108,7 +100,7 @@ export default function Profile() {
       ? [
           { to: "/admin", label: "Admin Panel", icon: ShieldCheck, tone: "bg-brand-600" },
           { to: "/notifications", label: "Notifications", icon: Bell, tone: "bg-violet-500" },
-          { to: "/", label: "Dashboard", icon: LayoutDashboard, tone: "bg-slate-600" },
+          { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, tone: "bg-slate-600" },
         ]
       : [
           { to: "/report", label: "Report an Issue", icon: Wrench, tone: "bg-brand-600" },
@@ -148,7 +140,7 @@ export default function Profile() {
             <div className="relative -mt-8 shrink-0">
               <div
                 className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-white text-3xl font-extrabold tracking-tight text-white shadow-xl dark:border-slate-900 sm:h-28 sm:w-28"
-                style={{ background: user?.avatarColor || "#6366f1" }}
+                style={{ background: user?.avatarColor || "#2563eb" }}
               >
                 {initials}
               </div>
@@ -166,7 +158,7 @@ export default function Profile() {
                 </span>
                 {isWorker && (
                   <span className="chip bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300">
-                    <HardHat size={11} /> {WORKER_TYPE_LABELS[user?.workerType] || user?.workerType}
+                    <HardHat size={11} /> {workerTypeLabel(user?.workerType)}
                   </span>
                 )}
                 {hasSchool(user?.school) && (
@@ -251,7 +243,7 @@ export default function Profile() {
                           <Cell key={entry.name} fill={STATUS_COLORS[entry.name]} />
                         ))}
                       </Pie>
-                      <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", background: "#fff", fontSize: 12 }} />
+                      <Tooltip content={<ChartTooltip />} />
                     </PieChart>
                   </ResponsiveContainer>
                   <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">

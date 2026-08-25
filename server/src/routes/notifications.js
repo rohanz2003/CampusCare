@@ -7,7 +7,7 @@ const router = Router();
 router.get("/", requireAuth, (req, res) => {
   const db = readDb();
   let items = db.notifications
-    .filter((n) => (req.user.role === "admin" ? true : n.userId === req.user.id))
+    .filter((n) => n.userId === req.user.id)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const unread = items.filter((n) => !n.read).length;
   res.json({ notifications: items, unread });
@@ -17,7 +17,7 @@ router.patch("/:id/read", requireAuth, (req, res) => {
   const db = readDb();
   const n = db.notifications.find((x) => x.id === req.params.id);
   if (!n) return res.status(404).json({ message: "Notification not found" });
-  if (req.user.role !== "admin" && n.userId !== req.user.id) {
+  if (n.userId !== req.user.id) {
     return res.status(403).json({ message: "Not allowed" });
   }
   n.read = true;
@@ -28,7 +28,7 @@ router.patch("/:id/read", requireAuth, (req, res) => {
 router.post("/read-all", requireAuth, (req, res) => {
   const db = readDb();
   for (const n of db.notifications) {
-    if (req.user.role === "admin" || n.userId === req.user.id) n.read = true;
+    if (n.userId === req.user.id) n.read = true;
   }
   writeDb(db);
   res.json({ ok: true });

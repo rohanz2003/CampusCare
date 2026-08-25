@@ -52,7 +52,7 @@ router.get("/workers", (req, res) => {
       name: u.name,
       workerType: u.workerType,
       workerTypeLabel: db.workerTypes?.find((t) => t.id === u.workerType)?.label || u.workerType,
-      assigned: db.issues.filter((i) => i.assignedToId === u.id && i.status !== "Resolved").length,
+      activeAssignments: db.issues.filter((i) => i.assignedToId === u.id && i.status !== "Resolved").length,
     }));
   res.json({ workers, workerTypes: db.workerTypes || [] });
 });
