@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../lib/api.js";
+import { api, setGlobalNavigate } from "../lib/api.js";
 
 const AuthContext = createContext(null);
 
@@ -14,6 +14,11 @@ export function AuthProvider({ children }) {
   });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Register the navigate function for axios interceptor to use
+  useEffect(() => {
+    setGlobalNavigate(navigate);
+  }, [navigate]);
 
   useEffect(() => {
     if (!localStorage.getItem("cc_token")) {

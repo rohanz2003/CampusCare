@@ -1,5 +1,12 @@
 import axios from "axios";
 
+// Global navigate function to be set by AuthContext
+let globalNavigate = null;
+
+export function setGlobalNavigate(navigate) {
+  globalNavigate = navigate;
+}
+
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "/api",
   headers: { "Content-Type": "application/json" },
@@ -17,7 +24,12 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem("cc_token");
       localStorage.removeItem("cc_user");
-      if (!window.location.pathname.startsWith("/login")) window.location.href = "/login";
+      // Use React Router's navigate if available, otherwise fall back to hard reload
+      if (globalNavigate && !window.location.pathname.startsWith("/login")) {
+        globalNavigate("/login", { replace: true });
+      } else if (!window.location.pathname.startsWith("/login")) {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(err);
   }

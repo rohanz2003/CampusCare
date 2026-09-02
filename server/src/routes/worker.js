@@ -75,14 +75,20 @@ router.post("/issues/:id/progress", upload.array("images", 4), async (req, res) 
       if (status === "In Progress") {
         actions.push({ action: "Worker started the repair work", at: now, by: req.user.name });
         await pushNotification(null, issue.reporterId, "progress", `Work started on ${issue.id}`, `Worker ${req.user.name} has started work on "${issue.title}".`, issue.id);
+        // Notify all admins
+        await pushNotification(null, null, "progress", `Issue ${issue.id} in progress`, `Worker ${req.user.name} started work on "${issue.title}".`, issue.id, { targetRole: "admin" });
       }
       if (status === "Resolved") {
         updateFields.resolvedAt = now;
         actions.push({ action: "Worker completed the repair and marked it Resolved", at: now, by: req.user.name });
         await pushNotification(null, issue.reporterId, "resolved", `Issue ${issue.id} resolved`, `"${issue.title}" has been resolved by ${req.user.name}. Thank you for reporting!`, issue.id);
+        // Notify all admins
+        await pushNotification(null, null, "resolved", `Issue ${issue.id} resolved`, `Worker ${req.user.name} resolved "${issue.title}".`, issue.id, { targetRole: "admin" });
       }
       if (status === "Pending") {
         actions.push({ action: "Worker reopened the task (Pending)", at: now, by: req.user.name });
+        // Notify all admins
+        await pushNotification(null, null, "pending", `Issue ${issue.id} reopened`, `Worker ${req.user.name} reopened "${issue.title}".`, issue.id, { targetRole: "admin" });
       }
     }
 

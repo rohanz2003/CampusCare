@@ -8,16 +8,18 @@ const CATEGORIES = ["furniture", "electrical", "sanitation", "plumbing", "safety
 const PRIORITIES = ["Low", "Medium", "High", "Critical"];
 const STATUSES = ["Pending", "In Progress", "Resolved"];
 
-export async function pushNotification(db, userId, type, title, message, issueId) {
+export async function pushNotification(db, userId, type, title, message, issueId, options = {}) {
   const counters = collections.counters();
   const counterDoc = await counters.findOneAndUpdate(
     { _id: "notification" },
     { $inc: { seq: 1 } },
     { upsert: true, returnDocument: "after" }
   );
+  const { targetRole = null } = options;
   const n = {
     id: `N${counterDoc.seq}`,
-    userId,
+    userId: userId ?? null,
+    targetRole,
     type,
     title,
     message,
@@ -178,6 +180,8 @@ router.post("/", requireAuth, async (req, res) => {
     const issues = collections.issues();
     await issues.insertOne(issue);
     await pushNotification(null, req.user.id, "pending", `Issue ${issueId} logged`, `Your report "${issue.title}" was received and is pending review.`, issueId);
+    // Notify all admins about new issue
+    await pushNotification(null, null, "pending", `New issue reported: ${issueId}`, `${req.user.name} reported "${issue.title}" (${priority} priority) at ${location}.`, issueId, { targetRole: "admin" });
 
     res.status(201).json({ issue });
   } catch (err) {
@@ -234,11 +238,8 @@ router.post("/:id/remind", requireAuth, async (req, res) => {
       { $push: { timeline: entry }, $set: { updatedAt: now } }
     );
 
-    const users = collections.users();
-    const admins = await users.find({ role: "admin" }).toArray();
-    for (const admin of admins) {
-      await pushNotification(null, admin.id, "pending", `Reminder: ${issue.id} still pending`, `${req.user.name} reminded about "${issue.title}" (${issue.priority} priority, reported ${new Date(issue.createdAt).toLocaleDateString()}).`, issue.id);
-    }
+    // Notify all admins about the reminder (shared notification visible to all admins)
+    await pushNotification(null, null, "pending", `Reminder: ${issue.id} still pending`, `${req.user.name} reminded about "${issue.title}" (${issue.priority} priority, reported ${new Date(issue.createdAt).toLocaleDateString()}).`, issue.id, { targetRole: "admin" });
 
     const updated = await issues.findOne({ id: req.params.id });
     res.json({ issue: updated, reminded: true });
