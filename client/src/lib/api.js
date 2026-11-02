@@ -1,10 +1,44 @@
 import axios from "axios";
 
-// Global navigate function to be set by AuthContext
-let globalNavigate = null;
+export const TOKEN_KEY = "cc_token";
+export const USER_KEY = "cc_user";
 
-export function setGlobalNavigate(navigate) {
-  globalNavigate = navigate;
+// A 401 from these endpoints means "wrong credentials", not "your session died",
+// so they must never trigger the session-expired flow — otherwise a mistyped
+// password would look like a silent logout.
+const CREDENTIAL_PATHS = ["/auth/login", "/auth/register", "/auth/forgot-password", "/auth/reset-password"];
+
+// AuthContext registers a handler here. The interceptor deliberately does NOT
+// navigate: it only drops the session and lets the route guards redirect.
+// Redirecting imperatively while <PublicOnly> still held a stale user object is
+// what caused the /dashboard <-> /login ping-pong that Chrome killed with
+// "Throttling navigation to prevent the browser from hanging".
+let onSessionExpired = null;
+
+export function setSessionExpiredHandler(fn) {
+  onSessionExpired = fn;
+}
+
+export function getToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function readStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem(USER_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+export function storeSession({ token, user }) {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+export function clearSession() {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USER_KEY);
 }
 
 export const api = axios.create({
@@ -13,7 +47,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("cc_token");
+  const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -21,15 +55,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem("cc_token");
-      localStorage.removeItem("cc_user");
-      // Use React Router's navigate if available, otherwise fall back to hard reload
-      if (globalNavigate && !window.location.pathname.startsWith("/login")) {
-        globalNavigate("/login", { replace: true });
-      } else if (!window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login";
-      }
+    const url = err.config?.url || "";
+    const isCredentialCheck = CREDENTIAL_PATHS.some((p) => url.includes(p));
+    if (err.response?.status === 401 && !isCredentialCheck) {
+      clearSession();
+      onSessionExpired?.();
     }
     return Promise.reject(err);
   }

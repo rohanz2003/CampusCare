@@ -59,6 +59,11 @@ export default function AdminPanel() {
   };
 
   const decide = async (userId, action) => {
+    if (!userId) {
+      toast("error", "This registration is missing a user ID. Refresh and try again.");
+      return;
+    }
+
     setBusyReq(userId);
     try {
       await api.patch(`/admin/users/${userId}/decision`, { action });

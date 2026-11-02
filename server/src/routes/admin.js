@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { ObjectId } from "mongodb";
 import { collections, publicUser } from "../db.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { pushNotification } from "./issues.js";
@@ -90,7 +91,12 @@ router.get("/users", async (req, res) => {
     let query = { role: { $ne: "admin" } };
     if (status) query.status = status;
     const userList = await users.find(query).toArray();
-    res.json({ users: userList.map(publicUser) });
+    res.json({
+      users: userList.map((user) => ({
+        ...publicUser(user),
+        id: user.id || user._id.toString(),
+      })),
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Internal server error" });
@@ -99,17 +105,26 @@ router.get("/users", async (req, res) => {
 
 router.patch("/users/:id/decision", async (req, res) => {
   try {
+    const userId = req.params.id;
+    if (!userId || userId === "undefined" || userId === "null") {
+      return res.status(400).json({ message: "A valid user ID is required" });
+    }
+
     const { action } = req.body || {};
     const users = collections.users();
-    const target = await users.findOne({ id: req.params.id });
+    const query = ObjectId.isValid(userId)
+      ? { $or: [{ id: userId }, { _id: new ObjectId(userId) }] }
+      : { id: userId };
+    const target = await users.findOne(query);
     if (!target) return res.status(404).json({ message: "User not found" });
     if (target.role === "admin") return res.status(400).json({ message: "Admins cannot be approved or rejected" });
     if (action !== "approve" && action !== "reject") return res.status(400).json({ message: "Action must be approve or reject" });
 
     const newStatus = action === "approve" ? "approved" : "rejected";
-    await users.updateOne({ id: req.params.id }, { $set: { status: newStatus } });
+    await users.updateOne(query, { $set: { status: newStatus } });
+    const targetId = target.id || target._id.toString();
 
-    await pushNotification(null, target.id, action === "approve" ? "resolved" : "pending",
+    await pushNotification(null, targetId, action === "approve" ? "resolved" : "pending",
       action === "approve" ? "Registration approved" : "Registration rejected",
       action === "approve"
         ? `Welcome, ${target.name}! Your ${target.role === "worker" ? `worker (${target.workerType}) ` : ""}account was approved. You can now sign in.`
@@ -117,8 +132,8 @@ router.patch("/users/:id/decision", async (req, res) => {
       null
     );
 
-    const updated = await users.findOne({ id: req.params.id });
-    res.json({ user: { id: updated.id, name: updated.name, role: updated.role, status: updated.status } });
+    const updated = await users.findOne(query);
+    res.json({ user: { id: targetId, name: updated.name, role: updated.role, status: updated.status } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Internal server error" });

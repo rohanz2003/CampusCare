@@ -31,9 +31,7 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { unread } = useNotifications(user?.id);
-
-  if (user?.role === "worker") return <Navigate to="/worker" replace />;
+  const { unread } = useNotifications();
 
   const links = useMemo(() => {
     if (user?.role === "admin") {
@@ -52,6 +50,11 @@ export default function Layout() {
       { to: "/profile", label: "My Profile", icon: User },
     ];
   }, [user, unread]);
+
+  // Placed after every hook on purpose: returning above useMemo broke the rules
+  // of hooks and crashed the whole tree (blank page) whenever the role changed
+  // while this Layout was already mounted.
+  if (user?.role === "worker") return <Navigate to="/worker" replace />;
 
   const initials = (user?.name || "U")
     .split(" ")

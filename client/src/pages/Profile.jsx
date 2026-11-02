@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   LogOut, Mail, School, CalendarDays, User as UserIcon, ShieldCheck, HardHat,
   BadgeCheck, ArrowRight, Activity, ClipboardList, Wrench, CheckCircle2, Clock,
@@ -28,7 +28,6 @@ function hasSchool(s) {
 export default function Profile() {
   const { user, logout } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
   const { items: notifications } = useNotifications();
   const [stats, setStats] = useState(null);
   const [loaded, setLoaded] = useState(false);
@@ -109,9 +108,9 @@ export default function Profile() {
         ];
 
   const logoutNow = () => {
-    logout();
     toast("info", "You have been signed out");
-    navigate("/login");
+    // The protected route redirects after logout clears the session.
+    logout();
   };
 
   return (

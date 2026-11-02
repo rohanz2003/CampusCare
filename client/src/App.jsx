@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import Layout from "./components/Layout.jsx";
 import WorkerLayout from "./components/WorkerLayout.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
+import FullScreenLoader from "./components/FullScreenLoader.jsx";
 import { ToastProvider } from "./components/Toast.jsx";
 import { useAuth } from "./context/AuthContext.jsx";
 import { homeFor } from "./lib/ui.js";
@@ -45,7 +46,11 @@ function NotFound() {
 
 // Renders a public route (landing / auth). Signed-in visitors are bounced to their role home.
 function PublicOnly({ children }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  // Wait for /auth/me to settle first: a stale cc_user left in localStorage
+  // would otherwise bounce us into a protected route that immediately bounces
+  // back here, which is the loop Chrome reports as throttled navigation.
+  if (loading) return <FullScreenLoader label="Checking your session…" />;
   if (user) return <Navigate to={homeFor(user)} replace />;
   return children;
 }
