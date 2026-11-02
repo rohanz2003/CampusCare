@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { collections, publicUser } from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
+import { WORKER_TYPES } from "./auth.js";
 
 const router = Router();
 
@@ -36,12 +37,13 @@ router.get("/meta", async (req, res) => {
   try {
     const schools = await collections.schools().find().toArray();
     const categories = await collections.counters().findOne({ _id: "category" });
+    const workerTypeDoc = await collections.counters().findOne({ _id: "workerType" });
     res.json({
       schools,
       categories: categories?.categories || [],
       priorities: PRIORITIES,
       statuses: STATUSES,
-      workerTypes: await collections.counters().findOne({ _id: "workerType" })?.workerTypes || [],
+      workerTypes: workerTypeDoc?.workerTypes?.length ? workerTypeDoc.workerTypes : WORKER_TYPES,
     });
   } catch (err) {
     console.error(err);
